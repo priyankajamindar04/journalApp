@@ -6,6 +6,8 @@ import java.util.Optional;
 
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,10 +34,10 @@ public class JournalEntryController {
 	
 	
 	@PostMapping
-	public boolean createEntry(@RequestBody JournalEntry myEntry) {
+	public ResponseEntity<?> createEntry(@RequestBody JournalEntry myEntry) {
 		myEntry.setDate(new Date());
 		journalEntryService.saveEntry(myEntry);
-		return true;
+		return new ResponseEntity<>(HttpStatus.CREATED);
 	}
 	
 	@PutMapping("id/{myId}")
@@ -62,7 +64,8 @@ public class JournalEntryController {
 	}
 	
 	@DeleteMapping("id/{myId}")
-	public boolean deleteJournalEntryByID(@PathVariable ObjectId myId) {
-		return journalEntryService.deleteById(myId);
+	public ResponseEntity<?> deleteJournalEntryByID(@PathVariable ObjectId myId) {
+		journalEntryService.deleteById(myId);
+		return new ResponseEntity<>("Deleted",HttpStatus.ACCEPTED);
 	}
 }
