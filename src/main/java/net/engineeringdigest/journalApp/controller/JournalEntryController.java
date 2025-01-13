@@ -18,7 +18,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import net.engineeringdigest.journalApp.entity.JournalEntry;
+import net.engineeringdigest.journalApp.entity.User;
 import net.engineeringdigest.journalApp.service.JournalEntryService;
+import net.engineeringdigest.journalApp.service.UserService;
 
 @RestController
 @RequestMapping("/journal")
@@ -27,36 +29,85 @@ public class JournalEntryController {
 	@Autowired
 	private JournalEntryService journalEntryService;
 	
+	@Autowired
+	private UserService userService;
+	
 	@GetMapping
 	public List<JournalEntry> getAll() {
 		return journalEntryService.getAll();
 	}
 	
 	
+	@GetMapping("/{userName}")
+	public ResponseEntity<?> getAllJournalEntriesForUser(@PathVariable String userName) {
+		User user =  userService.findByUserName(userName);
+		if (!user.getJournalEntries().isEmpty()) {
+			return new ResponseEntity<>(user.getJournalEntries(),HttpStatus.OK);
+		}
+		return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+	}
+	
+	
 	@PostMapping
 	public ResponseEntity<?> createEntry(@RequestBody JournalEntry myEntry) {
-		myEntry.setDate(new Date());
-		journalEntryService.saveEntry(myEntry);
+		try {
+			journalEntryService.saveEntry(myEntry);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
 		return new ResponseEntity<>(HttpStatus.CREATED);
 	}
 	
-	@PutMapping("id/{myId}")
-	public boolean updateJournalEntryByID(@PathVariable String myId, @RequestBody JournalEntry myEntry) {
-		System.out.println("hudj");
-		ObjectId id1 = new ObjectId(myId);
-		Optional<JournalEntry> oldEntry = journalEntryService.findById(id1);
-		if (oldEntry.isPresent()) {
-			oldEntry.get().setDate(new Date());
-			oldEntry.get().setContent(myEntry.getContent());
-			oldEntry.get().setTitle(myEntry.getTitle());
-			journalEntryService.saveEntry(oldEntry.get());
-			return true;
+	
+	@PostMapping("/{userName}")
+	public ResponseEntity<?> createJournalEntriesForUser(@RequestBody JournalEntry myEntry, @PathVariable String userName) {
+		try {
+			journalEntryService.saveJournalEntriesForUser(myEntry, userName);
+			return new ResponseEntity<>(HttpStatus.CREATED);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
-		//myEntry.setDate(new Date());
-		//journalEntryService.saveEntry(myEntry);
-		System.out.println(oldEntry);
-		return false;
 	}
+	
+	@PutMapping("id/{myId}")
+	public ResponseEntity<?> updateJournalEntryByID(@PathVariable ObjectId myId, @RequestBody JournalEntry myEntry) {
+		try {
+			Optional<JournalEntry> oldEntry = journalEntryService.findById(myId);
+			if (oldEntry.isPresent()) {
+				oldEntry.get().setDate(new Date());
+				oldEntry.get().setContent(myEntry.getContent());
+				oldEntry.get().setTitle(myEntry.getTitle());
+				journalEntryService.saveEntry(oldEntry.get());
+				return new ResponseEntity<>(HttpStatus.CREATED);
+			}
+			return new ResponseEntity<>(HttpStatus.NOT_MODIFIED);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	
+	@PutMapping("update/{userName}/{myId}")
+	public ResponseEntity<?> updateJournalEntryByIDUsername(@PathVariable String userName ,@PathVariable ObjectId myId, @RequestBody JournalEntry myEntry) {
+		try {
+			User user =  userService.findByUserName(userName);
+			if (user!= null) {
+				Optional<JournalEntry> identifiedEntry = user.getJournalEntries().stream().filter(entry -> entry.getId().equals(myId)).findFirst();
+				if (identifiedEntry.isPresent()) {
+					journalEntryService.saveEntry(identifiedEntry.get(),myEntry);
+					return new ResponseEntity<>(HttpStatus.CREATED);
+				}
+			}
+			return new ResponseEntity<>(HttpStatus.NOT_MODIFIED);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	
+	
 	
 	@GetMapping("id/{myId}")
 	public Optional<JournalEntry> getJournalEntryByID(@PathVariable ObjectId myId) {
@@ -67,5 +118,26 @@ public class JournalEntryController {
 	public ResponseEntity<?> deleteJournalEntryByID(@PathVariable ObjectId myId) {
 		journalEntryService.deleteById(myId);
 		return new ResponseEntity<>("Deleted",HttpStatus.ACCEPTED);
+	}
+	
+	
+	@DeleteMapping("{userName}/{myId}")
+	public ResponseEntity<?> deleteJournalEntryByIDUsername(@PathVariable String userName , @PathVariable ObjectId myId) {
+		try {
+			User user =  userService.findByUserName(userName);
+			if (user!= null) {
+				Optional<JournalEntry> identifiedEntry = user.getJournalEntries().stream().filter(entry -> entry.getId().equals(myId)).findFirst();
+				if (identifiedEntry.isPresent()) {
+					user.getJournalEntries().remove(identifiedEntry.get());
+					userService.saveEntry(user);
+					//journalEntryService.deleteById(myId);
+					return new ResponseEntity<>(HttpStatus.CREATED);
+				}
+			}
+			return new ResponseEntity<>(HttpStatus.NOT_MODIFIED);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
 	}
 }
