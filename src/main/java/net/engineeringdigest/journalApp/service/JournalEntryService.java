@@ -46,14 +46,14 @@ public class JournalEntryService {
 		return true;
 	}
 	
-	//@Transactional
+	@Transactional
 	public void saveJournalEntriesForUser(JournalEntry myEntry, String userName) {
 		myEntry.setDate(new Date());
 		User user = userService.findByUserName(userName);
 		if (user!=null) {
 			JournalEntry savedEntry = journalEntryRepository.save(myEntry);
 			user.getJournalEntries().add(savedEntry);
-			//user.setUserName(null);
+			user.setUserName(null);
 			userService.saveEntry(user);
 		}
 	}
